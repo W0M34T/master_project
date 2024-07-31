@@ -92,7 +92,7 @@ class SA_CLERIC(Env):
                 reward = 100
             else:
                 reward += self.heroes_alive * 20
-        elif self.max_duration <= 0:
+        elif self.max_duration <= 0 or self.chase_count >= 10:
             terminations = True
             reward = -50
 

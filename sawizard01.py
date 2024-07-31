@@ -61,6 +61,7 @@ class SA_WIZARD(Env):
 
         self.state = None
         self.max_duration = None
+        self.chase_count = None
         self.heroes_alive = None
         self.goblins_alive = None
 
@@ -69,7 +70,7 @@ class SA_WIZARD(Env):
 
     def step(self, action):
         reward = 0
-        done = False
+        terminations = False
 
         # Initiative: Rogue, Goblin, Goblin, Goblin, Goblin, Fighter, Wizard, Cleric
         # TODO: randomize initiative
@@ -84,15 +85,15 @@ class SA_WIZARD(Env):
         # Calculate reward and check if fight is over
         if self.heroes_alive == 0:
             reward = -100
-            done = True
+            terminations = True
         elif self.goblins_alive == 0:
-            done = True
+            terminations = True
             if self.heroes_alive == 4:
                 reward = 100
             else:
                 reward += self.heroes_alive * 20
-        elif self.max_duration <= 0:
-            done = True
+        elif self.max_duration <= 0 or self.chase_count >= 10:
+            terminations = True
             reward = -50
 
         observations = {
@@ -131,7 +132,7 @@ class SA_WIZARD(Env):
         info = {"action_mask": wizard_action_mask}
 
         # Return step information
-        return observations, reward, done, info
+        return observations, reward, terminations, None, info
 
     def render(self):
         pass
@@ -146,6 +147,7 @@ class SA_WIZARD(Env):
         }
 
         self.max_duration = 1000
+        self.chase_count = 0
         self.heroes_alive = 4
         self.goblins_alive = 4
 
@@ -564,19 +566,35 @@ class SA_WIZARD(Env):
     def cast_burning_hands_action(self):
         if self.debug_mode:
             print("... casts burning hands ...")
-        # Assumption that two Goblins are within reach (if alive)
-        target1, target2 = random.sample(self.state["goblins"], 2)
 
         damage = random.randint(1, 6) + random.randint(1, 6) + random.randint(1, 6)
         goblin_dex_save_mod = self.base_stats["goblin"]["dex_modifier"]
         wizard_spell_dc = self.base_stats["wizard"]["spell_dc"]
 
-        for goblin in [target1, target2]:
+        # Assumption that two Goblins are within reach (if alive)
+        if self.goblins_alive > 1:
+            targets = self.choose_targets()
+
+            for goblin in targets:
+                saved = self.saving_throw(goblin_dex_save_mod, wizard_spell_dc)
+                if saved:
+                    damage = round(damage / 2)
+
+                self.deal_damage(goblin, damage)
+        else:
+            target = self.choose_target(mode="random")
+
             saved = self.saving_throw(goblin_dex_save_mod, wizard_spell_dc)
             if saved:
                 damage = round(damage / 2)
 
-            self.deal_damage(goblin, damage)
+            self.deal_damage(target, damage)
+
+    def choose_targets(self):
+        while True:
+            target1, target2 = random.sample(self.state["goblins"], 2)
+            if target1["alive"] and target2["alive"]:
+                return [target1, target2]
 
     def cast_heal_action(self, target, target_name, modifier, spell):
         if self.debug_mode:
@@ -620,16 +638,3 @@ class SA_WIZARD(Env):
             character["zone"] = 2
             if self.debug_mode:
                 print("... moves to the frontline!")
-                
-                
-                
-env=SA_FIGHTER(render_mode="human", debug_mode=True)
-observations, infos = env.reset()
-done = False
-
-while not done:    
-    action = env.action_space.sample(infos["action_mask"])
-    
-    observations, reward, done, infos = env.step(action)
-    
-env.close()

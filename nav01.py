@@ -61,6 +61,7 @@ class NO_AGENT(Env):
 
         self.state = None
         self.max_duration = None
+        self.chase_count = None
         self.heroes_alive = None
         self.goblins_alive = None
 
@@ -91,7 +92,7 @@ class NO_AGENT(Env):
                 reward = 100
             else:
                 reward += self.heroes_alive * 20
-        elif self.max_duration <= 0:
+        elif self.max_duration <= 0 or self.chase_count >= 10:
             done = True
             reward = -50
 
@@ -121,7 +122,7 @@ class NO_AGENT(Env):
         info = {}
 
         # Return step information
-        return observations, reward, done, info
+        return observations, reward, done, None, info
 
     def render(self):
         pass
@@ -136,6 +137,7 @@ class NO_AGENT(Env):
         }
 
         self.max_duration = 1000
+        self.chase_count = 0
         self.heroes_alive = 4
         self.goblins_alive = 4
 
@@ -617,16 +619,3 @@ class NO_AGENT(Env):
             character["zone"] = 2
             if self.debug_mode:
                 print("... moves to the frontline!")
-                
-                
-                
-env=SA_FIGHTER(render_mode="human", debug_mode=True)
-observations, infos = env.reset()
-done = False
-
-while not done:    
-    action = env.action_space.sample(infos["action_mask"])
-    
-    observations, reward, done, infos = env.step(action)
-    
-env.close()

@@ -716,3 +716,12 @@ while env.agents:
 
     observations, rewards, terminations, truncations, infos = env.step(actions)
 env.close()"""
+
+"""env = MA_PARTY(render_mode="human", debug_mode=True)
+observations, infos = env.reset()
+
+while env.agents:
+    actions = {agent: env.action_space(agent).sample(infos[agent]["action_mask"]) for agent in env.agents}
+
+    observations, rewards, terminations, truncations, infos = env.step(actions)
+env.close()"""

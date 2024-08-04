@@ -148,6 +148,7 @@ class SA_CLERIC(Env):
         }
 
         self.max_duration = 1000
+        self.chase_count = 0
         self.heroes_alive = 4
         self.goblins_alive = 4
 

@@ -21,7 +21,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         self.agents = copy(self.possible_agents)
         self.debug_mode = debug_mode
         self.all_enemies = enemies
-        self.enemies = copy(self.possible_enemies)
+        self.enemies = copy(self.all_enemies)
         self.number_of_enemies = 0
 
         self.possible_enemies = {
@@ -30,6 +30,8 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
             "Orc": {"hp": 15, "ac": 13, "to_hit_bonus": 5, "modifier": 3, "max_damage_roll": 12},
             "Half-Ogre": {"hp": 30, "ac": 12, "to_hit_bonus": 5, "modifier": 3, "max_damage_roll": 20}
         }
+
+        self.monster_index = ["Giant Rat", "Goblin", "Orc", "Half-Ogre"]
 
         self.base_stats = {
             "rogue": {"hp": 9, "ac": 15, "modifier": 3, "weapon": "Rapier", "ranged_weapon": "Short Bow"},
@@ -241,7 +243,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
 
         for enemy_type in self.all_enemies:
             for _ in range(self.all_enemies[enemy_type]):
-                self.state["enemies"].append({"hp": self.possible_enemies[enemy_type]["hp"], "alive": 1})
+                self.state["enemies"].append({"hp": self.possible_enemies[enemy_type]["hp"], "alive": 1, "monster-index": self.monster_index[enemy_type]})
 
         self.max_duration = 1000
         self.agents = copy(self.possible_agents)
@@ -251,7 +253,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
             self.number_of_enemies += self.enemies[enemy]
 
         self.enemies_alive = self.number_of_enemies
-        self.enemy_buffer = 4 - self.number_of_enemies # 4 is max enemies of trained model
+        self.enemy_buffer = 10 - self.number_of_enemies # 4 is max enemies of trained model
 
         observations = {
             agent: np.concatenate(
@@ -355,7 +357,10 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         if target["hp"] <= damage:
             target["hp"] = 0
             target["alive"] = 0
+
+            self.enemies[self.monster_index[target["monster-index"]]] -= 1
             self.enemies_alive -= 1
+
             if self.debug_mode:
                 print(f"... hits for {damage} damage killing the enemy!")
         else:

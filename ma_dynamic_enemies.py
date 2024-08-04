@@ -13,17 +13,18 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         "name": "marl_heroes_vs_dynamic_enemies_v01",
     }
 
-    def __init__(self, render_mode="human", debug_mode=False, number_of_enemies=4, type_of_enemy="Goblin"):
+    def __init__(self, render_mode="human", debug_mode=False, enemies=None):
         super().__init__()
 
         self.render_mode = render_mode
-        self.number_of_enemies = number_of_enemies
         self.possible_agents = ["rogue", "fighter", "wizard", "cleric"]
         self.agents = copy(self.possible_agents)
         self.debug_mode = debug_mode
-        self.enemy = type_of_enemy
+        self.all_enemies = enemies
+        self.enemies = copy(self.possible_enemies)
+        self.number_of_enemies = 0
 
-        self.enemies = {
+        self.possible_enemies = {
             "Giant Rat": {"hp": 7, "ac": 12, "to_hit_bonus": 4, "modifier": 2, "max_damage_roll": 4},
             "Goblin": {"hp": 7, "ac": 13, "to_hit_bonus": 4, "modifier": 2, "max_damage_roll": 6},
             "Orc": {"hp": 15, "ac": 13, "to_hit_bonus": 5, "modifier": 3, "max_damage_roll": 12},
@@ -46,8 +47,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 "modifier": 3,
                 "weapon": "Mace",
                 "cantrip": "Sacred Flame",
-            },
-            self.enemy: self.enemies[self.enemy],
+            }
         }
 
         # Define Discrete action spaces for each agent
@@ -59,7 +59,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         obs_space = Box(
             low=0,
             high=1,
-            shape=((len(self.possible_agents) * 4 + self.number_of_enemies * 2),),
+            shape=((len(self.possible_agents) * 4 + 10 * 2),), # 10 is max number of monster supported
             dtype=np.float32,
         )
 
@@ -74,6 +74,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         self.max_duration = None
         self.heroes_alive = None
         self.enemies_alive = None
+        self.enemy_buffer = None
 
         if self.debug_mode:
             print("Roll initiative!")
@@ -197,8 +198,11 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                     for hero in self.possible_agents
                 ]
                 + [
-                    np.array([enemy["hp"] / 7.0, enemy["alive"]], dtype=np.float32)
-                    for enemy in self.state["enemies"]
+                    np.array([enemy["hp"] / 7.0, enemy["alive"]], dtype=np.float32) # Add a third to show which monster it is
+                    for enemy in self.enemy_state
+                ] + [
+                    np.array([0, 0], dtype=np.float32)
+                    for _ in range(self.enemy_buffer)
                 ],
                 dtype=np.float32,
             )
@@ -232,13 +236,22 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
             "fighter": {"hp": 13, "alive": 1, "zone": 2, "spellslots": 0},
             "wizard": {"hp": 5, "alive": 1, "zone": 1, "spellslots": 2},
             "cleric": {"hp": 10, "alive": 1, "zone": 1, "spellslots": 2},
-            "enemies": [{"hp": self.enemies[self.enemy]["hp"], "alive": 1} for _ in range(self.number_of_enemies)],
+            "enemies": [],
         }
+
+        for enemy_type in self.all_enemies:
+            for _ in range(self.all_enemies[enemy_type]):
+                self.state["enemies"].append({"hp": self.possible_enemies[enemy_type]["hp"], "alive": 1})
 
         self.max_duration = 1000
         self.agents = copy(self.possible_agents)
         self.heroes_alive = 4
+
+        for enemy in self.enemies:
+            self.number_of_enemies += self.enemies[enemy]
+
         self.enemies_alive = self.number_of_enemies
+        self.enemy_buffer = 4 - self.number_of_enemies # 4 is max enemies of trained model
 
         observations = {
             agent: np.concatenate(
@@ -257,6 +270,9 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 + [
                     np.array([enemy["hp"] / 7.0, enemy["alive"]], dtype=np.float32)
                     for enemy in self.state["enemies"]
+                ] + [
+                    np.array([0, 0], dtype=np.float32)
+                    for _ in range(self.enemy_buffer)
                 ],
                 dtype=np.float32,
             )
@@ -349,8 +365,10 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 print(f"... hits for {damage} damage leaving the enemy at {hp} hp!")
 
     def attack_roll(self, to_hit_bonus, armor_class, advantage=False):
-
-        return random.randint(1, 20) + to_hit_bonus >= armor_class
+        if advantage:
+            pass
+        else:
+            return random.randint(1, 20) + to_hit_bonus >= armor_class
 
     def damage_roll(self, max_damage, modifier):
         return random.randint(1, max_damage) + modifier
@@ -380,15 +398,15 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 self.enemies_move()
 
             else:
-                self.enemy_attack_action(self.enemies_alive)
+                for enemy_type in self.enemies:
+                    to_hit_bonus = self.possible_enemies[enemy_type]["to-hit-bonus"]
+                    damage_bonus = self.possible_enemies[enemy_type]["mod"]
+                    self.enemy_attack_action(self.enemies[enemy_type], to_hit_bonus, damage_bonus)
 
-    def enemy_attack_action(self, num_attacks):
-        to_hit_bonus = self.base_stats["enemy"]["to_hit_bonus"]
-        mod = self.base_stats["enemy"]["modifier"]
-
+    def enemy_attack_action(self, num_attacks, to_hit_bonus, damage_bonus, enemy):
         for _ in range(num_attacks):
             if self.debug_mode:
-                print("enemy turn starts ...")
+                print(f"{enemy} turn starts ...")
             if self.heroes_alive > 0 and (
                 (self.state["rogue"]["zone"] == 2 and self.state["rogue"]["alive"] == 1)
                 or (
@@ -407,12 +425,12 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 target, target_ac, target_name = self.choose_hero_target()
                 if self.debug_mode:
                     print(f"... attacking {target_name} ...")
-                if self.enemy == "Giant Rat" and self.enemies_alive > 2:
+                if enemy == "Giant Rat" and self.enemies_alive > 2:
                     hit = self.attack_roll(to_hit_bonus, target_ac, advantage=True)
                 else:
                     hit = self.attack_roll(to_hit_bonus, target_ac)
                 if hit:
-                    damage = self.damage_roll(max_damage=6, modifier=mod)
+                    damage = self.damage_roll(max_damage=6, modifier=damage_bonus)
                     self.deal_damage_to_hero(target, damage, target_name)
                 else:
                     if self.debug_mode:
@@ -666,7 +684,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         target1, target2 = random.sample(self.state["enemies"], 2)
 
         damage = random.randint(1, 6) + random.randint(1, 6) + random.randint(1, 6)
-        enemy_dex_save_mod = self.base_stats["enemy"]["dex_modifier"]
+        enemy_dex_save_mod = self.base_stats["enemy"]["modifier"]
         wizard_spell_dc = self.base_stats["wizard"]["spell_dc"]
 
         for enemy in [target1, target2]:

@@ -1,34 +1,29 @@
 import tkinter as tk
 from tkinter import ttk
-import time
-
 from stable_baselines3 import PPO
-
 from ma_dynamic_enemies import MA_PARTY_DYNAMIC_ENEMIES
-
-# Track CPU/RAM
-import threading
-import psutil
-from datetime import datetime
+from ma_v03 import MA_PARTY
 
 def on_ok():
-    if combo_3.get() != "Only one type":
-        enemies = {
-            combo_2.get(): int(spinbox_1.get()), 
-            combo_3.get(): int(spinbox_4.get())
-                   }
-        print("Two enemy types")
-    else:
-        enemies = {
-            combo_2.get(): int(spinbox_1.get())
-                   }
-        print("One enemy type")
+    #if combo_3.get() != "Only one type":
+    #    enemies = {
+    #        combo_2.get(): int(spinbox_1.get()), 
+    #        combo_3.get(): int(spinbox_4.get())
+    #               }
+    #    print("Two enemy types")
+    ##else:
+     #   enemies = {
+      #      combo_2.get(): int(spinbox_1.get())
+     ##              }
+     #   print("One enemy type")
 
+    enemies = int(spinbox_1.get())
     execute_function(enemies)
 
 def execute_function(enemies):
     model = PPO.load("ma_models\marl_heroes_vs_goblins_v01_100000_20240803-121824")
-    env = MA_PARTY_DYNAMIC_ENEMIES(render_mode="human", enemies=enemies)
+    # env = MA_PARTY_DYNAMIC_ENEMIES(render_mode="human", enemies=enemies)
+    env = MA_PARTY(render_mode="human")
 
     episodes = 1000
     reward = 0

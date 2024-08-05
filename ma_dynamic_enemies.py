@@ -61,7 +61,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         obs_space = Box(
             low=0,
             high=1,
-            shape=((len(self.possible_agents) * 4 + 10 * 2),), # 10 is max number of monster supported
+            shape=((len(self.possible_agents) * 4 + 10 * 3),), # 10 is max number of monster supported; 4 * 4 = 16 + 30 = 13 * 3 => 46
             dtype=np.float32,
         )
 
@@ -145,7 +145,9 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 print("##################################################")
                 print("##################################################")
                 print("##################################################")
-                print("enemies kill the party!")
+                for enemy in self.enemies:
+                    print(f"The {enemy}s (and) ")
+                print("... kill the party!")
                 print(f"rewards: {rewards}")
                 print("##################################################")
                 print("##################################################")
@@ -157,12 +159,12 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                 rewards = {a: self.heroes_alive * 20 for a in self.agents}
             terminations = {a: True for a in self.agents}
             self.agents = []
-            if self.debug_mode:
-                enemy_name = self.enemy
+            if self.debug_mode:                
                 print("##################################################")
                 print("##################################################")
                 print("##################################################")
-                print(f"The {enemy_name} are killed successfully!")
+                for enemy in self.enemies:
+                    print(f"The {enemy}s are killed successfully!")
                 print(f"rewards: {rewards}")
                 print("##################################################")
                 print("##################################################")
@@ -200,10 +202,10 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                     for hero in self.possible_agents
                 ]
                 + [
-                    np.array([enemy["hp"] / 7.0, enemy["alive"]], dtype=np.float32) # Add a third to show which monster it is
-                    for enemy in self.enemy_state
+                    np.array([enemy["hp"] / 7.0, enemy["alive"], enemy["monster-index"] / 10], dtype=np.float32) # Add a third to show which monster it is
+                    for enemy in self.state["enemies"]
                 ] + [
-                    np.array([0, 0], dtype=np.float32)
+                    np.array([0, 0, 0], dtype=np.float32)
                     for _ in range(self.enemy_buffer)
                 ],
                 dtype=np.float32,
@@ -243,7 +245,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
 
         for enemy_type in self.all_enemies:
             for _ in range(self.all_enemies[enemy_type]):
-                self.state["enemies"].append({"hp": self.possible_enemies[enemy_type]["hp"], "alive": 1, "monster-index": self.monster_index[enemy_type]})
+                self.state["enemies"].append({"hp": self.possible_enemies[enemy_type]["hp"], "alive": 1, "monster-index": self.monster_index.index(enemy_type)})
 
         self.max_duration = 1000
         self.agents = copy(self.possible_agents)
@@ -270,10 +272,10 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
                     for hero in self.possible_agents
                 ]
                 + [
-                    np.array([enemy["hp"] / 7.0, enemy["alive"]], dtype=np.float32)
+                    np.array([enemy["hp"] / 7.0, enemy["alive"], enemy["monster-index"] / 10], dtype=np.float32)
                     for enemy in self.state["enemies"]
                 ] + [
-                    np.array([0, 0], dtype=np.float32)
+                    np.array([0, 0, 0], dtype=np.float32)
                     for _ in range(self.enemy_buffer)
                 ],
                 dtype=np.float32,
@@ -404,9 +406,9 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
 
             else:
                 for enemy_type in self.enemies:
-                    to_hit_bonus = self.possible_enemies[enemy_type]["to-hit-bonus"]
-                    damage_bonus = self.possible_enemies[enemy_type]["mod"]
-                    self.enemy_attack_action(self.enemies[enemy_type], to_hit_bonus, damage_bonus)
+                    to_hit_bonus = self.possible_enemies[enemy_type]["to_hit_bonus"]
+                    damage_bonus = self.possible_enemies[enemy_type]["modifier"]
+                    self.enemy_attack_action(self.enemies[enemy_type], to_hit_bonus, damage_bonus, enemy_type)
 
     def enemy_attack_action(self, num_attacks, to_hit_bonus, damage_bonus, enemy):
         for _ in range(num_attacks):
@@ -655,7 +657,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         max_weapon_damage = {"Mace": 8, "Greataxe": 12, "Short Sword": 6, "Rapier": 8, "Short Bow": 6}
         max_damage = max_weapon_damage.get(weapon)
 
-        hit = self.attack_roll(to_hit_bonus, self.base_stats["enemy"]["ac"])
+        hit = self.attack_roll(to_hit_bonus, self.possible_enemies[self.monster_index[target["monster-index"]]]["ac"])
         if hit:
             damage = self.damage_roll(max_damage, modifier)
             if sneak_attack:
@@ -674,7 +676,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         max_cantrip_damage = {"Firebolt": 10, "Sacred Flame": 8}
         max_damage = max_cantrip_damage.get(cantrip)
 
-        hit = self.attack_roll(to_hit_bonus, self.base_stats["enemy"]["ac"])
+        hit = self.attack_roll(to_hit_bonus, self.possible_enemies[self.monster_index[target["monster-index"]]]["ac"])
         if hit:
             damage = self.damage_roll(max_damage, 0)
             self.deal_damage(target, damage)
@@ -689,7 +691,7 @@ class MA_PARTY_DYNAMIC_ENEMIES(ParallelEnv):
         target1, target2 = random.sample(self.state["enemies"], 2)
 
         damage = random.randint(1, 6) + random.randint(1, 6) + random.randint(1, 6)
-        enemy_dex_save_mod = self.base_stats["enemy"]["modifier"]
+        enemy_dex_save_mod = self.possible_enemies[self.monster_index[target1["monster-index"]]]["modifier"]
         wizard_spell_dc = self.base_stats["wizard"]["spell_dc"]
 
         for enemy in [target1, target2]:
@@ -755,11 +757,11 @@ while env.agents:
     observations, rewards, terminations, truncations, infos = env.step(actions)
 env.close()"""
 
-"""env = MA_PARTY(render_mode="human", debug_mode=True)
+env = MA_PARTY_DYNAMIC_ENEMIES(render_mode="human", debug_mode=True, enemies={"Giant Rat": 6, "Goblin": 1})
 observations, infos = env.reset()
 
 while env.agents:
     actions = {agent: env.action_space(agent).sample(infos[agent]["action_mask"]) for agent in env.agents}
 
     observations, rewards, terminations, truncations, infos = env.step(actions)
-env.close()"""
+env.close()

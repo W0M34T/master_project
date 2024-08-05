@@ -6,14 +6,14 @@ from pettingzoo import ParallelEnv
 from copy import copy
 
 
-class MA_PARTY(ParallelEnv):
+class MA_PARTY_ORCS(ParallelEnv):
 
     metadata = {
         "render_modes": ["human"],
         "name": "marl_heroes_vs_goblins_v01",
     }
 
-    def __init__(self, render_mode="human", debug_mode=False, number_of_goblins=4):
+    def __init__(self, render_mode="human", debug_mode=False, number_of_goblins=2):
         super().__init__()
 
         self.render_mode = render_mode
@@ -39,7 +39,7 @@ class MA_PARTY(ParallelEnv):
                 "weapon": "Mace",
                 "cantrip": "Sacred Flame",
             },
-            "goblin": {"hp": 7, "ac": 13, "to_hit_bonus": 4, "dex_modifier": 2},
+            "goblin": {"hp": 15, "ac": 13, "to_hit_bonus": 5, "dex_modifier": 3},
         }
 
         # Define Discrete action spaces for each agent
@@ -51,7 +51,7 @@ class MA_PARTY(ParallelEnv):
         obs_space = Box(
             low=0,
             high=1,
-            shape=((len(self.possible_agents) * 4 + self.number_of_goblins * 2),),
+            shape=((len(self.possible_agents) * 4 + 4 * 2),),
             dtype=np.float32,
         )
 
@@ -190,6 +190,9 @@ class MA_PARTY(ParallelEnv):
                 + [
                     np.array([goblin["hp"] / 7.0, goblin["alive"]], dtype=np.float32)
                     for goblin in self.state["goblins"]
+                ] + [
+                    np.array([0, 0], dtype=np.float32)
+                    for _ in range(2)
                 ],
                 dtype=np.float32,
             )
@@ -223,7 +226,7 @@ class MA_PARTY(ParallelEnv):
             "fighter": {"hp": 13, "alive": 1, "zone": 2, "spellslots": 0},
             "wizard": {"hp": 5, "alive": 1, "zone": 1, "spellslots": 2},
             "cleric": {"hp": 10, "alive": 1, "zone": 1, "spellslots": 2},
-            "goblins": [{"hp": 7, "alive": 1} for _ in range(self.number_of_goblins)],
+            "goblins": [{"hp": 15, "alive": 1} for _ in range(self.number_of_goblins)],
         }
 
         self.max_duration = 1000
@@ -248,6 +251,9 @@ class MA_PARTY(ParallelEnv):
                 + [
                     np.array([goblin["hp"] / 7.0, goblin["alive"]], dtype=np.float32)
                     for goblin in self.state["goblins"]
+                ] + [
+                    np.array([0, 0], dtype=np.float32)
+                    for _ in range(2)
                 ],
                 dtype=np.float32,
             )
@@ -398,7 +404,7 @@ class MA_PARTY(ParallelEnv):
                 if self.debug_mode:
                     print(f"... attacking {target_name} ...")
                 if self.attack_roll(to_hit_bonus, target_ac):
-                    damage = self.damage_roll(max_damage=6, modifier=dex_mod)
+                    damage = self.damage_roll(max_damage=12, modifier=dex_mod)
                     self.deal_damage_to_hero(target, damage, target_name)
                 else:
                     if self.debug_mode:

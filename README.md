@@ -1,21 +1,6 @@
 # Project Setup and Configuration
 Setting up the environment correctly is essential to avoid errors and ensure smooth execution of the project. The following steps outline the installation and configuration processes required to set up the environments for both Single-Agent Reinforcement Learning (SARL) and Multi-Agent Reinforcement Learning (MARL).
 
-## Table of Contents
-Environment Setup
-Python Installation
-Virtual Environments
-PyTorch Installation
-StableBaselines3 Installation
-Additional Packages
-Dependency Fixes
-Verification
-Required Code Changes
-SARL Modifications
-MARL Modifications
-Environment Setup
-Python Installation
-
 ## First, download and install Python from the official website:
 https://www.python.org/downloads/release/python-3115/
 
@@ -27,7 +12,8 @@ conda create -n magent
 conda activate sagent
 conda install python=3.10
 conda activate magent
-conda install python=3.10```
+conda install python=3.10
+```
 
 ### Install PyTorch in each virtual environment:
 ```bash
@@ -36,31 +22,37 @@ conda install pytorch torchvision torchaudio cpuonly -c pytorch
 
 ### StableBaselines3 Installation
 Install StableBaselines3 in each virtual environment:
+
 ```bash
 pip install stable-baselines3
-Additional Packages```
+```
 
 ### Install additional required packages:
+
 ```bash
 pip install SuperSuit
 pip install pettingzoo
 pip install ipykernel
 conda install tensorboard
 pip install psutil
-pip install py-cpuinfo```
+pip install py-cpuinfo
+```
 
 ### Dependency Fixes
 Fix specific dependencies that might cause issues:
+
 ```bash
 pip uninstall matplotlib
 pip install matplotlib
 pip uninstall kiwisolver
 pip install kiwisolver
 pip uninstall pandas
-pip install pandas```
+pip install pandas
+```
 
 ## Verification
 Verify that all necessary packages and their versions are correctly installed:
+
 ```bash
 Package                 Version
 ----------------------- -----------
@@ -79,7 +71,8 @@ tensorboard-data-server 0.6.1
 tensorboard-plugin-wit  1.8.1
 torch                   2.4.0
 torchaudio              2.4.0
-torchvision             0.15.2a0```
+torchvision             0.15.2a0
+```
 
 ## Required Code Changes
 ### SARL Modifications
@@ -118,7 +111,8 @@ def obs_to_tensor(self, observation: Union[np.ndarray, Dict[str, np.ndarray]]) -
         observation = observation.reshape((-1, *self.observation_space.shape))  # type: ignore[misc]
 
     obs_tensor = obs_as_tensor(observation, self.device)
-    return obs_tensor, vectorized_env```
+    return obs_tensor, vectorized_env
+```
 
 File Path: site-packages/stable_baselines3/common/vec_env/dummy_vec_env.py
 
@@ -130,7 +124,8 @@ def reset(self) -> VecEnvObs:
         self._save_obs(env_idx, obs["rogue"])  # CHANGED SARL
     self._reset_seeds()
     self._reset_options()
-    return self._obs_from_buf()```
+    return self._obs_from_buf()
+```
 
 ### MARL Modifications
 For MARL functionality, apply the following changes:
@@ -151,7 +146,8 @@ def step_wait(self) -> VecEnvStepReturn:
             obs, self.reset_infos[env_idx] = self.envs[env_idx].reset()
         self._save_obs(env_idx, obs[0])  # CHANGED
     return (self._obs_from_buf(), np.copy(self.buf_rews), 
-            np.copy(self.buf_dones), deepcopy(self.buf_infos))```
+            np.copy(self.buf_dones), deepcopy(self.buf_infos))
+```
 
 File Path: site-packages/supersuit/vector/markov_vector_wrapper.py
 
@@ -200,5 +196,6 @@ def step(self, actions):  # CHANGED
     """MarkovVectorEnv does not support environments with varying numbers 
     of active agents unless black_death is set to True"""
     
-    return observations, rews, tms, tcs, infs[0]  # CHANGED```
+    return observations, rews, tms, tcs, infs[0]  # CHANGED
+```
 This README provides detailed steps to set up the environments and make the necessary code modifications for both SARL and MARL. By following these instructions, you can ensure that your project is properly configured and ready for development or experimentation.

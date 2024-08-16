@@ -1,5 +1,11 @@
 # Project Setup and Configuration
-Setting up the environment correctly is essential to avoid errors and ensure smooth execution of the project. The following steps outline the installation and configuration processes required to set up the environments for both Single-Agent Reinforcement Learning (SARL) and Multi-Agent Reinforcement Learning (MARL).
+Setting up the environment correctly is essential to avoid errors and ensure smooth execution of the project. The following steps outline the installation and configuration processes required to set up the environments for both Single-Agent Reinforcement Learning (SARL) and Multi-Agent Reinforcement Learning (MARL). 
+
+## Project PC Specs
+- Windows
+- Single processor from the Intel64 family
+- Clock speed: approximately 2095 MHz (or 2.095 GHz)
+- 32 GB RAM
 
 ## First, download and install Python from the official website:
 https://www.python.org/downloads/release/python-3115/
@@ -15,7 +21,9 @@ conda activate magent
 conda install python=3.10
 ```
 
-### Install PyTorch in each virtual environment:
+### PyTorch Installation
+Install PyTorch in each virtual environment:
+
 ```bash
 conda install pytorch torchvision torchaudio cpuonly -c pytorch
 ```
@@ -39,7 +47,7 @@ pip install py-cpuinfo
 ```
 
 ### Dependency Fixes
-Fix specific dependencies that might cause issues:
+Fix specific dependencies that might cause issues. Open command line in administrator mode:
 
 ```bash
 pip uninstall matplotlib
